@@ -1,9 +1,11 @@
-#! /usr/bin/env python
- 
+#!/usr/bin/env python3
+
 # Copyright (C) 2008-2009 by Guy Rutenberg
-# Modified 2011 by Mike McCabe.  Original from
+# Modified 2011 by Mike McCabe
+# Modified 2019 by Julius Michaelis
+# Original from
 # http://www.guyrutenberg.com/2009/04/29/tarsum-02-a-read-only-version-of-tarsum/
- 
+
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
@@ -18,10 +20,11 @@
 # along with this program; if not, write to the
 # Free Software Foundation, Inc.,
 # 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- 
+
 import hashlib
 import tarfile
- 
+import re
+
 def tarsum(input_file, hash, output_file):
         """
         input_file  - A FILE object to read the tar file from.
@@ -30,7 +33,7 @@ def tarsum(input_file, hash, output_file):
         """
         tar = tarfile.open(mode="r|*", fileobj=input_file)
  
-        chunk_size = 512*1024
+        chunk_size = 512 * 1024
 
         for member in tar:
             if not member.isfile():
@@ -40,10 +43,15 @@ def tarsum(input_file, hash, output_file):
                 continue
             f = tar.extractfile(member)
             h = hashlib.new(hash)
-            data = f.read(chunk_size)
-            while data:
-                h.update(data)
-                data = f.read(chunk_size)
+            b = bytearray(chunk_size)
+            while True:
+                s = f.readinto(b)
+                if s <= 0:
+                    break;
+                if s == chunk_size:
+                    h.update(b)
+                else:
+                    h.update(b[0:s])
             output_file.write("%s  %s\n" % (h.hexdigest(), member.name))
             output_file.flush()
         output_file.write("%s  %s\n" % (input_file.hexdigest(), "TOTAL"))
@@ -98,11 +106,11 @@ def main():
  
     output_file = sys.stdout
     if option.output:
-        output_file = open(option.output, "w")
+        output_file = open(option.output, "wb")
  
-    input_file = sys.stdin
-    if len(args)==1 and args[0]!="-":
-        input_file = open(args[0], "r")
+    input_file = sys.stdin.buffer
+    if len(args) == 1 and args[0] != "-":
+        input_file = open(args[0], "rb")
  
     input_file = hashing_file(input_file, option.checksum, option.pipe)
 
@@ -113,5 +121,3 @@ if __name__ == "__main__":
     from optparse import OptionParser
     import sys
     main()
- 
-# vim: ai ts=4 sts=4 et sw=4
